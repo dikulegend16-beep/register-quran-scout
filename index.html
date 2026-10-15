@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>التسجيل | كشافة أبناء القرآن ورابطة خطى الشبابية</title>
@@ -283,18 +282,45 @@ var r={name:$('name').value.trim().length>=3,age:a>=5&&a<=60,phone:okPhone($('ph
 if(C[cur].g)r.gphone=okPhone($('gphone').value);return r}
 function prog(){var r=checks(),k=Object.keys(r),n=k.filter(function(x){return r[x]}).length;$('prog').style.width=(n/k.length*100)+'%'}
 ['name','age','phone','gphone'].forEach(function(i){$(i).oninput=function(){var r=checks();this.classList.toggle('ok',!!r[i]);this.classList.remove('bad');setE(i);prog()}});
-$('f').onsubmit=function(e){e.preventDefault();$('msg').textContent='';
+// GitHub Pages submits to the HTTPS Node.js API on the VPS via WireGuard.
+var REGISTRATION_API='https://register-quran-scout.online/api/register';
+$('f').onsubmit=async function(e){
+ e.preventDefault();
+ $('msg').textContent='';
  var r=checks(),M={name:'أدخل الاسم الكامل',age:'أدخل عمراً صحيحاً',phone:'رقم الهاتف غير صحيح',gphone:'رقم ولي الأمر غير صحيح'},bad=false;
  Object.keys(M).forEach(function(k){setE(k);if(k in r&&!r[k]){setE(k,M[k]);$(k).classList.add('bad');bad=true}});
  if(bad)return;
- if(typeof google==='undefined'||!google.script||!google.script.run){$('msg').textContent='افتح الموقع من رابط النشر، وليس كملف محلي.';return}
- $('send').disabled=true;$('msg').style.color='var(--mute)';$('msg').textContent='جاري إرسال التسجيل...';
  var d={name:$('name').value.trim(),age:parseInt(toEn($('age').value),10),phone:toEn($('phone').value.trim()),type:cur,guardianPhone:C[cur].g?toEn($('gphone').value.trim()):'',website:$('website').value||''};
- google.script.run.withSuccessHandler(function(res){
-   $('send').disabled=false;$('msg').style.color='var(--red)';
-   if(res&&res.ok){$('ref').textContent=res.ref;$('formBox').style.display='none';$('done').style.display='block';$('f').reset();document.querySelectorAll('input').forEach(function(i){i.classList.remove('ok','bad')});prog()}
-   else{$('msg').textContent='ما قدرنا نرسل التسجيل. حاول مرة ثانية أو تواصل مع المنظمين.'}
- }).withFailureHandler(function(err){$('send').disabled=false;$('msg').style.color='var(--red)';$('msg').textContent=(err&&err.message==='SPAM')?'تعذر إرسال الطلب.':'حدث خطأ أثناء الإرسال. حاول مرة أخرى.'}).submitRegistration(d);
+ $('send').disabled=true;
+ $('msg').style.color='var(--mute)';
+ $('msg').textContent='جاري إرسال التسجيل...';
+ try{
+   var response=await fetch(REGISTRATION_API,{
+     method:'POST',
+     headers:{'Content-Type':'application/json'},
+     body:JSON.stringify(d),
+     cache:'no-store'
+   });
+   var res;
+   try{res=await response.json()}catch(_){throw new Error('INVALID_RESPONSE')}
+   if(response.ok&&res&&res.ok&&res.ref){
+     $('ref').textContent=res.ref;
+     $('formBox').style.display='none';
+     $('done').style.display='block';
+     $('f').reset();
+     document.querySelectorAll('input').forEach(function(i){i.classList.remove('ok','bad')});
+     $('msg').textContent='';
+     prog();
+   }else{
+     $('msg').style.color='var(--red)';
+     $('msg').textContent=(res&&typeof res.message==='string')?res.message:'ما قدرنا نرسل التسجيل. حاول مرة ثانية أو تواصل مع المنظمين.';
+   }
+ }catch(err){
+   $('msg').style.color='var(--red)';
+   $('msg').textContent='تعذّر الاتصال بخدمة التسجيل. تأكد من الإنترنت وحاول مرة أخرى.';
+ }finally{
+   $('send').disabled=false;
+ }
 };
 $('again').onclick=function(){show(cur)};
 show('scout');
